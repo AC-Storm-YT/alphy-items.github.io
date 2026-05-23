@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alphy Items Database</title>
+    <title>Alphy Assets</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --bg-color: #0f172a;      /* Deep slate background */
-            --card-bg: #1e293b;       /* Slightly lighter slate for cards */
+            --bg-color: #0f172a;      
+            --card-bg: #1e293b;       
             --text-color: #f8fafc;
             --text-muted: #94a3b8;
-            --accent: #3b82f6;        /* Electric blue accent */
+            --accent: #3b82f6;        
             --accent-hover: #2563eb;
             --success: #10b981;
             --border-color: #334155;
@@ -24,7 +24,6 @@
             color: var(--text-color);
             margin: 0;
             padding: 40px 20px;
-            /* Custom scrollbar for a desktop app feel */
             scrollbar-width: thin;
             scrollbar-color: var(--border-color) var(--bg-color);
         }
@@ -58,7 +57,7 @@
             box-sizing: border-box;
             padding: 14px 24px;
             font-size: 16px;
-            border-radius: 9999px; /* Pill shape */
+            border-radius: 9999px;
             border: 2px solid var(--border-color);
             background-color: var(--card-bg);
             color: var(--text-color);
@@ -77,7 +76,7 @@
             justify-content: center;
             gap: 12px;
             flex-wrap: wrap;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
         }
 
         .tab-btn {
@@ -103,6 +102,15 @@
             color: white;
             border-color: var(--accent);
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .item-count {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 30px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
         }
 
         .grid {
@@ -199,7 +207,42 @@
             color: #000;
         }
 
-        /* Animated Loading Spinner */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            background-color: var(--border-color);
+        }
+
+        .page-btn.active {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         #loading {
             display: flex;
             flex-direction: column;
@@ -226,13 +269,15 @@
 <body>
 
     <header>
-        <h1>Alphy Items Database (Images)</h1>
+        <h1>Alphy Asset Library</h1>
         <div class="search-container">
-            <input type="text" id="searchBar" placeholder="Search for items...">
+            <input type="text" id="searchBar" placeholder="Search across all items...">
         </div>
     </header>
 
     <div class="tabs" id="tabsContainer"></div>
+    
+    <div class="item-count" id="itemCount"></div>
 
     <div id="loading">
         <div class="spinner"></div>
@@ -240,48 +285,70 @@
     </div>
 
     <div class="grid" id="itemsGrid"></div>
+    
+    <div class="pagination" id="paginationContainer"></div>
 
     <script>
         const owner = 'AC-Storm-YT';
         const repo = 'alphy.github.io';
-        const path = 'icons';
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
         let allItems = [];
+        let filteredItems = []; 
         let currentCategory = 'all';
+        
+        let currentPage = 1;
+        const itemsPerPage = 100;
 
         const tabsContainer = document.getElementById('tabsContainer');
         const itemsGrid = document.getElementById('itemsGrid');
+        const paginationContainer = document.getElementById('paginationContainer');
         const searchBar = document.getElementById('searchBar');
         const loadingStatus = document.getElementById('loading');
+        const itemCount = document.getElementById('itemCount');
 
         async function fetchGitHubData() {
             try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('Failed to fetch categories. (Might be GitHub API Rate Limit)');
-                const categories = await response.json();
+                // 1. We use the Git Trees API to fetch the entire repo structure in ONE call
+                let branch = 'main';
+                let treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+                let response = await fetch(treeUrl);
+                
+                // Fallback to 'master' branch if 'main' isn't found
+                if (!response.ok) {
+                    branch = 'master';
+                    treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+                    response = await fetch(treeUrl);
+                }
 
-                for (const cat of categories) {
-                    if (cat.type === 'dir' && cat.name !== 'error') {
-                        const catResponse = await fetch(cat.url);
-                        const files = await catResponse.json();
+                if (!response.ok) throw new Error('Failed to fetch repository tree. API Rate limit might be reached temporarily.');
+                
+                const data = await response.json();
 
-                        files.forEach(file => {
-                            if (file.name.endsWith('.png')) {
-                                allItems.push({
-                                    category: cat.name,
-                                    fileName: file.name,
-                                    itemName: file.name.replace('.png', ''),
-                                    imageUrl: file.download_url
-                                });
-                            }
+                // 2. Loop through every file in the entire repository
+                data.tree.forEach(file => {
+                    // Check if the file is inside 'icons/', is a .png, and ignores the 'error' folder
+                    if (file.path.startsWith('icons/') && file.path.endsWith('.png') && !file.path.includes('/error/')) {
+                        // Example file.path: "icons/Body/Octane.png"
+                        const parts = file.path.split('/'); 
+                        const category = parts[1]; // e.g. "Body"
+                        const fileName = parts[parts.length - 1]; // e.g. "Octane.png"
+                        const itemName = fileName.replace('.png', '');
+                        
+                        // We construct the direct raw download URL safely
+                        const imageUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${file.path}`;
+
+                        allItems.push({
+                            category: category,
+                            fileName: fileName,
+                            itemName: itemName,
+                            imageUrl: imageUrl
                         });
                     }
-                }
+                });
 
                 loadingStatus.style.display = 'none';
                 createTabs();
-                renderItems();
+                applyFilters();
 
             } catch (error) {
                 loadingStatus.innerHTML = `<span style="color: #ef4444;">Error: ${error.message}</span>`;
@@ -300,55 +367,121 @@
                     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentCategory = cat;
-                    renderItems();
+                    applyFilters(); 
                 };
                 tabsContainer.appendChild(btn);
             });
         }
 
-function renderItems() {
-    const searchQuery = searchBar.value.toLowerCase();
-    itemsGrid.innerHTML = '';
+        function applyFilters() {
+            const searchQuery = searchBar.value.toLowerCase();
+            
+            filteredItems = allItems.filter(item => {
+                const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
+                const matchesSearch = item.itemName.toLowerCase().includes(searchQuery);
+                return matchesCategory && matchesSearch;
+            });
 
-    const filteredItems = allItems.filter(item => {
-        const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
-        const matchesSearch = item.itemName.toLowerCase().includes(searchQuery);
-        return matchesCategory && matchesSearch;
-    });
+            if (filteredItems.length === allItems.length) {
+                itemCount.innerText = `Showing all ${allItems.length} items`;
+            } else {
+                itemCount.innerText = `Showing ${filteredItems.length} of ${allItems.length} total items`;
+            }
 
-    filteredItems.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'card';
+            currentPage = 1; 
+            renderPage();
+        }
 
-        // Notice we removed the inline onclick="" from the button
-        card.innerHTML = `
-            <div class="image-container">
-                <img src="${item.imageUrl}" alt="${item.itemName}" loading="lazy">
-            </div>
-            <div class="card-info">
-                <div class="item-name">
-                    <span>ID / Name</span>
-                    <span class="name-badge">${item.itemName}</span>
-                </div>
-                <button class="copy-btn">Copy</button>
-            </div>
-        `;
+        function renderPage() {
+            itemsGrid.innerHTML = '';
 
-        // We grab the button we just created inside the card
-        const copyBtn = card.querySelector('.copy-btn');
-        
-        // Securely attach the event listener, passing the exact item name
-        copyBtn.addEventListener('click', function() {
-            copyToClipboard(item.itemName, this);
-        });
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            
+            const itemsToShow = filteredItems.slice(startIndex, endIndex);
 
-        itemsGrid.appendChild(card);
-    });
+            itemsToShow.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
 
-    if (filteredItems.length === 0) {
-        itemsGrid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No items found matching your criteria.</p>';
-    }
-}
+                card.innerHTML = `
+                    <div class="image-container">
+                        <img src="${item.imageUrl}" alt="${item.itemName}" loading="lazy">
+                    </div>
+                    <div class="card-info">
+                        <div class="item-name">
+                            <span>ID / Name</span>
+                            <span class="name-badge">${item.itemName}</span>
+                        </div>
+                        <button class="copy-btn">Copy</button>
+                    </div>
+                `;
+
+                const copyBtn = card.querySelector('.copy-btn');
+                copyBtn.addEventListener('click', function() {
+                    copyToClipboard(item.itemName, this);
+                });
+
+                itemsGrid.appendChild(card);
+            });
+
+            if (filteredItems.length === 0) {
+                itemsGrid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No items found matching your criteria.</p>';
+            }
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            paginationContainer.innerHTML = '';
+            
+            const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+            if (totalPages <= 1) return; 
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.innerText = 'Prev';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderPage();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            };
+            paginationContainer.appendChild(prevBtn);
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+            if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                pageBtn.innerText = i;
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    renderPage();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+                paginationContainer.appendChild(pageBtn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.innerText = 'Next';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderPage();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            };
+            paginationContainer.appendChild(nextBtn);
+        }
 
         function copyToClipboard(text, buttonElement) {
             navigator.clipboard.writeText(text).then(() => {
@@ -365,7 +498,7 @@ function renderItems() {
             });
         }
 
-        searchBar.addEventListener('input', renderItems);
+        searchBar.addEventListener('input', applyFilters);
         fetchGitHubData();
     </script>
 </body>
