@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alphy Items Database</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0f172a;      /* Deep slate background */
+            --card-bg: #1e293b;       /* Slightly lighter slate for cards */
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;        /* Electric blue accent */
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --border-color: #334155;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px 20px;
+            /* Custom scrollbar for a desktop app feel */
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--bg-color);
+        }
+
+        body::-webkit-scrollbar { width: 8px; }
+        body::-webkit-scrollbar-track { background: var(--bg-color); }
+        body::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-weight: 700;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .search-container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #searchBar {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 9999px; /* Pill shape */
+            border: 2px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        #searchBar:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+
+        .tab-btn {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 8px 20px;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: capitalize;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-color);
+            border-color: var(--text-muted);
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1024px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent);
+        }
+
+        .image-container {
+            width: 100%;
+            height: 160px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .card img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+
+        .card-info { width: 100%; }
+
+        .item-name {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .name-badge {
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 14px;
+            word-break: break-all;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .copy-btn {
+            background-color: var(--border-color);
+            color: var(--text-color);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--text-muted);
+            color: #000;
+        }
+
+        /* Animated Loading Spinner */
+        #loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 60px;
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Alphy Items Database (Images)</h1>
+        <div class="search-container">
+            <input type="text" id="searchBar" placeholder="Search for items...">
+        </div>
+    </header>
+
+    <div class="tabs" id="tabsContainer"></div>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <span>Syncing repositories...</span>
+    </div>
+
+    <div class="grid" id="itemsGrid"></div>
+
+    <script>
+        const owner = 'AC-Storm-YT';
+        const repo = 'alphy.github.io';
+        const path = 'icons';
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+        let allItems = [];
+        let currentCategory = 'all';
+
+        const tabsContainer = document.getElementById('tabsContainer');
+        const itemsGrid = document.getElementById('itemsGrid');
+        const searchBar = document.getElementById('searchBar');
+        const loadingStatus = document.getElementById('loading');
+
+        async function fetchGitHubData() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Failed to fetch categories. (Might be GitHub API Rate Limit)');
+                const categories = await response.json();
+
+                for (const cat of categories) {
+                    if (cat.type === 'dir' && cat.name !== 'error') {
+                        const catResponse = await fetch(cat.url);
+                        const files = await catResponse.json();
+
+                        files.forEach(file => {
+                            if (file.name.endsWith('.png')) {
+                                allItems.push({
+                                    category: cat.name,
+                                    fileName: file.name,
+                                    itemName: file.name.replace('.png', ''),
+                                    imageUrl: file.download_url
+                                });
+                            }
+                        });
+                    }
+                }
+
+                loadingStatus.style.display = 'none';
+                createTabs();
+                renderItems();
+
+            } catch (error) {
+                loadingStatus.innerHTML = `<span style="color: #ef4444;">Error: ${error.message}</span>`;
+                console.error(error);
+            }
+        }
+
+        function createTabs() {
+            const categories = ['all', ...new Set(allItems.map(item => item.category))];
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${cat === 'all' ? 'active' : ''}`;
+                btn.innerText = cat;
+                btn.onclick = () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentCategory = cat;
+                    renderItems();
+                };
+                tabsContainer.appendChild(btn);
+            });
+        }
+
+function renderItems() {
+    const searchQuery = searchBar.value.toLowerCase();
+    itemsGrid.innerHTML = '';
+
+    const filteredItems = allItems.filter(item => {
+        const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
+        const matchesSearch = item.itemName.toLowerCase().includes(searchQuery);
+        return matchesCategory && matchesSearch;
+    });
+
+    filteredItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        // Notice we removed the inline onclick="" from the button
+        card.innerHTML = `
+            <div class="image-container">
+                <img src="${item.imageUrl}" alt="${item.itemName}" loading="lazy">
+            </div>
+            <div class="card-info">
+                <div class="item-name">
+                    <span>ID / Name</span>
+                    <span class="name-badge">${item.itemName}</span>
+                </div>
+                <button class="copy-btn">Copy</button>
+            </div>
+        `;
+
+        // We grab the button we just created inside the card
+        const copyBtn = card.querySelector('.copy-btn');
+        
+        // Securely attach the event listener, passing the exact item name
+        copyBtn.addEventListener('click', function() {
+            copyToClipboard(item.itemName, this);
+        });
+
+        itemsGrid.appendChild(card);
+    });
+
+    if (filteredItems.length === 0) {
+        itemsGrid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No items found matching your criteria.</p>';
+    }
+}
+
+        function copyToClipboard(text, buttonElement) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = buttonElement.innerText;
+                buttonElement.innerText = 'Copied!';
+                buttonElement.style.backgroundColor = 'var(--success)';
+                buttonElement.style.color = '#fff';
+                
+                setTimeout(() => {
+                    buttonElement.innerText = originalText;
+                    buttonElement.style.backgroundColor = '';
+                    buttonElement.style.color = '';
+                }, 1500);
+            });
+        }
+
+        searchBar.addEventListener('input', renderItems);
+        fetchGitHubData();
+    </script>
+</body>
+</html>
